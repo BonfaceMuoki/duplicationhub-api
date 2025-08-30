@@ -33,38 +33,42 @@ services:
       timeout: 10s
 
   mysql:
-    image: 'mysql:5.7'
+    image: 'mysql/mysql-server:8.0'
     ports:
-      - '${DB_EXPOSE_PORT:-3306}:3306'
+      - '${DB_PORT:-3305}:3306'
     environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: laravel
-      MYSQL_USER: sail
-      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: 12345
       MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: duplicationhub_api
     volumes:
-      - sailmysql:/var/lib/mysql
-      - ./docker/my.cnf:/etc/my.cnf
+      - 'sail-mysql:/var/lib/mysql'
+      - './mysql-logs:/var/log/mysql'   # Mount logs folder to host
     networks:
       - sail
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
+      test: ["CMD", "mysqladmin", "ping", "-p12345"]
+      retries: 3
       timeout: 5s
-      retries: 5
+    command:
+      --general-log=1
+      --general-log-file=/var/log/mysql/general.log
+      --slow_query_log=1
+      --slow_query_log_file=/var/log/mysql/slow.log
 
   phpmyadmin:
-    image: 'phpmyadmin:latest'
+    image: phpmyadmin/phpmyadmin
     ports:
-      - '${DB_ADMIN_PORT:-8083}:80'
+      - '8083:80'
     environment:
       PMA_HOST: mysql
-      MYSQL_ROOT_PASSWORD: secret
-      UPLOAD_LIMIT: 30M
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: 12345
     depends_on:
       - mysql
     networks:
       - sail
+
 
 networks:
   sail:
