@@ -75,11 +75,11 @@ Route::middleware('jwt.cookie')->group(function () {
         Route::get('/{invite}/referral-tree', [PageInviteController::class, 'getReferralTree']);
         
         // Referral analytics and statistics
-        Route::get('/{invite}/direct-referrals', [ReferralController::class, 'getDirectReferrals']);
-        Route::get('/{invite}/upline', [ReferralController::class, 'getUpline']);
-        Route::get('/{invite}/referral-stats', [ReferralController::class, 'getReferralStats']);
-        Route::get('/{invite}/referral-network', [ReferralController::class, 'getReferralNetwork']);
-        Route::get('/{invite}/my-joiners', [ReferralController::class, 'getLevelOneInviteesDetails']);
+        Route::get('/{inviteId}/direct-referrals', [ReferralController::class, 'getDirectReferrals']);
+        Route::get('/{inviteId}/upline', [ReferralController::class, 'getUpline']);
+        Route::get('/{inviteId}/referral-stats', [ReferralController::class, 'getReferralStats']);
+        Route::get('/{inviteId}/referral-network', [ReferralController::class, 'getReferralNetwork']);
+        Route::get('/{inviteId}/my-joiners', [ReferralController::class, 'getLevelOneInviteesDetails']);
     });
     
 
@@ -135,7 +135,7 @@ Route::middleware(['jwt.cookie', 'role:super admin'])
     
     // Referral management (admin only)
     Route::prefix('referrals')->group(function () {
-        Route::put('/invites/{invite}/relationship', [ReferralController::class, 'updateReferralRelationship']);
+        Route::put('/invites/{inviteId}/relationship', [ReferralController::class, 'updateReferralRelationship']);
         Route::get('/pages/{page}/analytics', [ReferralController::class, 'getPageReferralAnalytics']);
         Route::get('/users/{user}/performance', [ReferralController::class, 'getUserReferralPerformance']);
     });

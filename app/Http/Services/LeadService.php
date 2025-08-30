@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Enums\LeadStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class LeadService
@@ -52,6 +54,9 @@ class LeadService
             $user = User::where('email', $data['email'])->first();
             
             if (!$user) {
+                // Generate a temporary password
+                $plainPassword = Str::random(16);
+                
                 // Create new user account for the lead
                 $user = User::create([
                     'first_name' => $data['first_name'],
@@ -61,9 +66,10 @@ class LeadService
                     'gender' => $data['gender'] ?? null,
                     'email' => $data['email'],
                     'phone_number' => $data['whatsapp_number'] ?? null,
-                    'password' => Hash::make(Str::random(16)), // Temporary password
+                    'password' => Hash::make($plainPassword), // Temporary password
                     'account_status' => 'active',
                 ]);
+                
             }
 
             // Generate unique handle for this submitter
@@ -80,6 +86,11 @@ class LeadService
 
             // Get the auto-generated handle
             $submitterHandle = $submitterInvite->handle;
+            
+            // Send password email to the new user (after invite is created)
+            if (isset($plainPassword)) {
+                $this->sendPasswordEmail($user, $page, $plainPassword, $submitterHandle);
+            }
 
             // Create the lead
             $lead = Lead::create([
@@ -411,5 +422,47 @@ class LeadService
             'contacted_leads' => $leadsByStatus['contacted'] ?? 0,
             'joined_leads' => $leadsByStatus['joined'] ?? 0,
         ];
+    }
+
+    /**
+     * Send password email to new user
+     */
+    private function sendPasswordEmail(User $user, Page $page, string $plainPassword, string $handle): bool
+    {
+        try {
+            $emailData = [
+                'name' => $user->first_name,
+                'email' => $user->email,
+                'password' => $plainPassword,
+                'page_title' => $page->title,
+                'page_headline' => $page->headline,
+                'my_link' => url("/{$page->slug}?ref={$handle}"),
+                'redirect_url' => $page->default_join_url ?? '#',
+                'page_summary' => $page->summary,
+                'cta_text' => $page->cta_text,
+                'cta_subtext' => $page->cta_subtext,
+            ];
+
+            // Send password email
+            Mail::send('emails.leads.password', $emailData, function ($message) use ($user, $page) {
+                $message->to($user->email, $user->first_name)
+                        ->subject("Your Account Credentials - {$page->title}");
+            });
+
+            Log::info('Password email sent successfully', [
+                'user_id' => $user->id,
+                'email' => $user->email
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send password email', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
     }
 } 

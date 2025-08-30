@@ -41,9 +41,25 @@ class ReferralController extends Controller
     /**
      * Get direct referrals only (depth = 1)
      */
-    public function getDirectReferrals(PageInvite $invite): JsonResponse
+    public function getDirectReferrals(string $inviteId): JsonResponse
     {
         try {
+            // Find the invite manually
+            $invite = PageInvite::find($inviteId);
+            
+            // If invite not found, return empty data instead of error
+            if (!$invite) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'invite' => null,
+                        'direct_referrals' => [],
+                        'count' => 0
+                    ],
+                    'message' => 'No invite found with the specified ID'
+                ]);
+            }
+
             $directReferrals = $this->referralService->getDirectReferrals($invite);
             
             return response()->json([
@@ -65,9 +81,26 @@ class ReferralController extends Controller
     /**
      * Get complete upline chain (who referred this user)
      */
-    public function getUpline(PageInvite $invite): JsonResponse
+    public function getUpline(string $inviteId): JsonResponse
     {
         try {
+            // Find the invite manually
+            $invite = PageInvite::find($inviteId);
+            
+            // If invite not found, return empty data instead of error
+            if (!$invite) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'invite' => null,
+                        'upline' => [],
+                        'count' => 0,
+                        'depth' => 0
+                    ],
+                    'message' => 'No invite found with the specified ID'
+                ]);
+            }
+
             $upline = $this->referralService->getUpline($invite);
             
             return response()->json([
@@ -90,9 +123,24 @@ class ReferralController extends Controller
     /**
      * Get referral statistics by level
      */
-    public function getReferralStats(PageInvite $invite): JsonResponse
+    public function getReferralStats(string $inviteId): JsonResponse
     {
         try {
+            // Find the invite manually
+            $invite = PageInvite::find($inviteId);
+            
+            // If invite not found, return empty data instead of error
+            if (!$invite) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'invite' => null,
+                        'stats' => []
+                    ],
+                    'message' => 'No invite found with the specified ID'
+                ]);
+            }
+
             $stats = $this->referralService->getReferralStats($invite);
             
             return response()->json([
@@ -197,9 +245,29 @@ class ReferralController extends Controller
     /**
      * Get detailed level 1 invitees with lead status and referral count
      */
-    public function getLevelOneInviteesDetails(PageInvite $invite, Request $request): JsonResponse
+    public function getLevelOneInviteesDetails(string $inviteId, Request $request): JsonResponse
     {
         try {
+            // Find the invite manually
+            $invite = PageInvite::find($inviteId);
+            
+            // If invite not found, return empty data instead of error
+            if (!$invite) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'data' => [],
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => 15,
+                        'total' => 0,
+                        'from' => null,
+                        'to' => null
+                    ],
+                    'message' => 'No invite found with the specified ID'
+                ]);
+            }
+
             $perPage = $request->get('per_page', 15);
             $page = $request->get('page', 1);
             
@@ -216,7 +284,8 @@ class ReferralController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get level 1 invitees details: ' . $e->getMessage()
+                'message' => 'Failed to get level 1 invitees details: ' . $e->getMessage(),
+                'error_code' => 'INTERNAL_ERROR'
             ], 500);
         }
     }
@@ -224,14 +293,32 @@ class ReferralController extends Controller
     /**
      * Get referral network visualization data
      */
-    public function getReferralNetwork(PageInvite $invite): JsonResponse
+    public function getReferralNetwork(string $inviteId): JsonResponse
     {
         try {
+            // Find the invite manually
+            $invite = PageInvite::find($inviteId);
+            
+            // If invite not found, return empty data instead of error
+            if (!$invite) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'invite' => null,
+                        'network' => []
+                    ],
+                    'message' => 'No invite found with the specified ID'
+                ]);
+            }
+
             $network = $this->referralService->getReferralNetwork($invite);
             
             return response()->json([
                 'success' => true,
-                'data' => $network
+                'data' => [
+                    'invite' => $invite->load(['user', 'page']),
+                    'network' => $network
+                ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -244,13 +331,24 @@ class ReferralController extends Controller
     /**
      * Update referral relationship (admin only)
      */
-    public function updateReferralRelationship(Request $request, PageInvite $invite): JsonResponse
+    public function updateReferralRelationship(Request $request, string $inviteId): JsonResponse
     {
         $request->validate([
             'new_ancestor_id' => 'required|integer|exists:page_invites,id'
         ]);
 
         try {
+            // Find the invite manually
+            $invite = PageInvite::find($inviteId);
+            
+            // If invite not found, return success with message
+            if (!$invite) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No invite found with the specified ID to update'
+                ]);
+            }
+
             $success = $this->referralService->updateReferralRelationship(
                 $invite->id, 
                 $request->new_ancestor_id

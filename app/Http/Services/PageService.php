@@ -24,8 +24,11 @@ class PageService
         }
 
         // Assign the current authenticated user as the creator
-        // $data['user_id'] = JWTAuth::user()->id;
-        $data['user_id'] = 1;
+        $data['user_id'] = JWTAuth::user()->id;
+
+        // Set default values for privacy and status
+        $data['is_public'] = $data['is_public'] ?? false;
+        $data['status'] = $data['status'] ?? 'draft';
 
         $page = Page::create($data);
 
@@ -93,6 +96,27 @@ class PageService
         $this->createAdminInvite($newPage);
 
         return $newPage;
+    }
+
+    public function getPublicPages(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Page::where('is_public', true)
+            ->where('is_active', true)
+            ->where('status', 'published')
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    public function makePagePublic(Page $page): Page
+    {
+        $page->update(['is_public' => true]);
+        return $page;
+    }
+
+    public function makePagePrivate(Page $page): Page
+    {
+        $page->update(['is_public' => false]);
+        return $page;
     }
 
     public function getPageStats(Page $page): array

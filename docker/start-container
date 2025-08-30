@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# Fix Laravel storage & cache permissions
+if [ -d /var/www/html/storage ]; then
+    echo "Fixing Laravel storage & cache permissions..."
+    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+fi
+
+# Execute command as current user (matches UID/GID)
+if [ $# -gt 0 ]; then
+    exec "$@"
+else
+    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+fi
