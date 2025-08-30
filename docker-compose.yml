@@ -33,7 +33,7 @@ services:
       timeout: 10s
 
   mysql:
-    image: 'mysql:8.0'
+    image: 'mysql:5.7'
     ports:
       - '${DB_EXPOSE_PORT:-3306}:3306'
     environment:
