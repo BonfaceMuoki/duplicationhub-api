@@ -197,4 +197,81 @@ class AuthenticationController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Send password reset email
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'frontend_url' => 'required|url'
+        ]);
+
+        try {
+            $result = $this->auth->forgotPassword($request->email, $request->frontend_url);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Password reset email sent successfully',
+                'data' => [
+                    'email' => $request->email,
+                    'sent_at' => now()->toISOString()
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Password reset email failed', [
+                'email' => $request->email,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send password reset email',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset password using token
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string',
+            'email' => 'required|email|exists:users,email',
+            'password' => 'required|min:6|confirmed'
+        ]);
+
+        try {
+            $result = $this->auth->resetPassword(
+                $request->email,
+                $request->token,
+                $request->password
+            );
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Password reset successfully',
+                'data' => [
+                    'email' => $request->email,
+                    'reset_at' => now()->toISOString()
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Password reset failed', [
+                'email' => $request->email,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reset password',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

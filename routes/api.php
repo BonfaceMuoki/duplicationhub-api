@@ -16,6 +16,10 @@ Route::prefix('auth')->group(function () {
     Route::post('/refresh', [AuthenticationController::class, 'refresh']);
     Route::post('/assign-user-admin', [AuthenticationController::class, 'assignUserAdmin']);
     Route::post('/expire-access-token', [AuthenticationController::class, 'expireAccessToken']);
+    
+    // Password reset routes
+    Route::post('/forgot-password', [AuthenticationController::class, 'forgotPassword']);
+    Route::post('/reset-password', [AuthenticationController::class, 'resetPassword']);
 });
 
 Route::get('/health', [AuthenticationController::class, 'health']);
@@ -28,6 +32,7 @@ Route::middleware(['jwt.cookie'])->group(function () {
 
 // Test endpoints
 Route::post('/test-push-notification', [AuthenticationController::class, 'testPushNotifications']);
+Route::post('/test-email', [UtilityController::class, 'testEmail']);
 
 // Page viewing endpoints (public)
 Route::prefix('pages')->group(function () {

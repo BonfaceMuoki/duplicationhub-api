@@ -4,9 +4,12 @@ namespace App\Http\Services;
 
 use App\Models\Page;
 use App\Models\PageInvite;
+use App\Models\User;
 use Illuminate\Support\Str;
-use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class PageService
 {
@@ -34,6 +37,9 @@ class PageService
 
         // Auto-create admin invite for the page creator
         $this->createAdminInvite($page);
+
+        // Send page creation notification email
+        $this->sendPageCreationEmail($page);
 
         return $page;
     }
@@ -94,6 +100,9 @@ class PageService
 
         // Create admin invite for the new page
         $this->createAdminInvite($newPage);
+
+        // Send page duplication notification email
+        $this->sendPageDuplicationEmail($newPage, $page);
 
         return $newPage;
     }
@@ -221,6 +230,87 @@ class PageService
             'leads_count' => 0,
             'is_active' => true,
         ]);
+    }
+
+    /**
+     * Send page creation notification email
+     */
+    private function sendPageCreationEmail(Page $page): void
+    {
+        try {
+            $user = $page->user;
+            
+            if (!$user || !$user->email) {
+                Log::warning('Cannot send page creation email: user or email not found', [
+                    'page_id' => $page->id,
+                    'user_id' => $page->user_id
+                ]);
+                return;
+            }
+
+            Mail::send('emails.pages.page-created', [
+                'user' => $user,
+                'page' => $page
+            ], function ($message) use ($user, $page) {
+                $message->to($user->email, $user->first_name)
+                        ->subject("Page Created Successfully: {$page->title}");
+            });
+
+            Log::info('Page creation email sent successfully', [
+                'page_id' => $page->id,
+                'user_id' => $user->id,
+                'email' => $user->email
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send page creation email', [
+                'page_id' => $page->id,
+                'user_id' => $page->user_id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send page duplication notification email
+     */
+    private function sendPageDuplicationEmail(Page $newPage, Page $originalPage): void
+    {
+        try {
+            $user = $newPage->user;
+            
+            if (!$user || !$user->email) {
+                Log::warning('Cannot send page duplication email: user or email not found', [
+                    'new_page_id' => $newPage->id,
+                    'original_page_id' => $originalPage->id
+                ]);
+                return;
+            }
+
+            Mail::send('emails.pages.page-duplicated', [
+                'user' => $user,
+                'new_page' => $newPage,
+                'original_page' => $originalPage
+            ], function ($message) use ($user, $newPage) {
+                $message->to($user->email, $user->first_name)
+                        ->subject("Page Duplicated: {$newPage->title}");
+            });
+
+            Log::info('Page duplication email sent successfully', [
+                'new_page_id' => $newPage->id,
+                'original_page_id' => $originalPage->id,
+                'user_id' => $user->id,
+                'email' => $user->email
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send page duplication email', [
+                'new_page_id' => $newPage->id,
+                'original_page_id' => $originalPage->id,
+                'user_id' => $newPage->user_id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     private function generateUniqueSlug(string $title): string

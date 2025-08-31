@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Spatie\Permission\Models\Role;
 use Kreait\Firebase\Messaging\CloudMessage;
@@ -408,5 +409,83 @@ class AuthenticationService
             ->withData(['custom_key' => 'custom_value']);
 
         return $messaging->sendMulticast($cloudMessage, $tokens);
+    }
+
+    /**
+     * Send password reset email
+     */
+    public function forgotPassword(string $email, string $frontendUrl)
+    {
+        $user = User::where('email', $email)->first();
+        
+        if (!$user) {
+            throw new \Exception('User not found');
+        }
+
+        // Generate password reset token
+        $token = \Str::random(64);
+        
+        // Store token in password_resets table (Laravel's built-in table)
+        \DB::table('password_resets')->updateOrInsert(
+            ['email' => $email],
+            [
+                'email' => $email,
+                'token' => $token,
+                'created_at' => now()
+            ]
+        );
+
+        // Build reset URL
+        $resetUrl = rtrim($frontendUrl, '/') . '/reset-password?token=' . $token . '&email=' . urlencode($email);
+
+        // Send email using Laravel's built-in mail system
+        \Mail::send('emails.password-reset', [
+            'user' => $user,
+            'resetUrl' => $resetUrl,
+            'token' => $token
+        ], function ($message) use ($user) {
+            $message->to($user->email)
+                    ->subject('Password Reset Request - DuplicationHub');
+        });
+
+        return true;
+    }
+
+    /**
+     * Reset password using token
+     */
+    public function resetPassword(string $email, string $token, string $password)
+    {
+        // Find the password reset record
+        $resetRecord = \DB::table('password_resets')
+            ->where('email', $email)
+            ->where('token', $token)
+            ->first();
+
+        if (!$resetRecord) {
+            throw new \Exception('Invalid or expired reset token');
+        }
+
+        // Check if token is expired (24 hours)
+        if (now()->diffInHours($resetRecord->created_at) > 24) {
+            // Clean up expired token
+            \DB::table('password_resets')->where('email', $email)->delete();
+            throw new \Exception('Reset token has expired');
+        }
+
+        // Update user password
+        $user = User::where('email', $email)->first();
+        if (!$user) {
+            throw new \Exception('User not found');
+        }
+
+        $user->update([
+            'password' => Hash::make($password)
+        ]);
+
+        // Clean up used token
+        \DB::table('password_resets')->where('email', $email)->delete();
+
+        return true;
     }
 }
