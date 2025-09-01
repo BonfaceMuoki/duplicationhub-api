@@ -230,12 +230,26 @@ class LeadService
     /**
      * Update lead status
      */
-    public function updateLeadStatus(Lead $lead, string $status, ?string $notes = null): Lead
+    public function updateLeadStatus(Lead $lead, string $status, ?string $notes = null, ?string $fullExternalInviteUrl = null, ?string $externalInviteCode = null): Lead
     {
         $lead->update([
             'status' => $status,
             'notes' => $notes,
         ]);
+        // Update the submitter invite with external invite data if provided
+        if ($fullExternalInviteUrl || $externalInviteCode) {
+            $submitterInvite = $lead->submitterInvite;
+            if ($submitterInvite) {
+                $updateData = [];
+                if ($fullExternalInviteUrl) {
+                    $updateData['full_external_invite_url'] = $fullExternalInviteUrl;
+                }
+                if ($externalInviteCode) {
+                    $updateData['external_invite_code'] = $externalInviteCode;
+                }
+                $submitterInvite->update($updateData);
+            }
+        }
 
         return $lead->fresh();
     }
@@ -253,6 +267,23 @@ class LeadService
         // Handle joining_link_shared status
         if ($status === 'joining_link_shared') {
             $this->handleJoiningLinkShared($lead, $additionalData);
+        }
+
+        // Update the submitter invite with external invite data if provided
+        if (isset($additionalData['full_external_invite_url']) || isset($additionalData['external_invite_code'])) {
+            $submitterInvite = $lead->submitterInvite;
+            if ($submitterInvite) {
+                $updateData = [];
+                if (isset($additionalData['full_external_invite_url']) && $additionalData['full_external_invite_url']) {
+                    $updateData['full_external_invite_url'] = $additionalData['full_external_invite_url'];
+                }
+                if (isset($additionalData['external_invite_code']) && $additionalData['external_invite_code']) {
+                    $updateData['external_invite_code'] = $additionalData['external_invite_code'];
+                }
+                if (!empty($updateData)) {
+                    $submitterInvite->update($updateData);
+                }
+            }
         }
 
         // Return the lead with all relationships loaded

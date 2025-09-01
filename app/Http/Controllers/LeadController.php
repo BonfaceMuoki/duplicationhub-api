@@ -339,6 +339,8 @@ class LeadController extends Controller
             'notes' => 'nullable|string',
             'landing_page_url' => 'nullable|url|required_if:status,joining_link_shared',
             'personal_message' => 'nullable|string|required_if:status,joining_link_shared',
+            'full_external_invite_url' => 'nullable|string|url',
+            'external_invite_code' => 'nullable|string|unique:page_invites,external_invite_code',
         ]);
 
         $additionalData = [];
@@ -350,6 +352,12 @@ class LeadController extends Controller
                 'personal_message' => $request->personal_message,
                 'notes' => $request->notes,
             ];
+        }
+
+        // Add external invite data if provided
+        if ($request->full_external_invite_url || $request->external_invite_code) {
+            $additionalData['full_external_invite_url'] = $request->full_external_invite_url;
+            $additionalData['external_invite_code'] = $request->external_invite_code;
         }
 
         $lead = app(LeadService::class)->updateStatus(

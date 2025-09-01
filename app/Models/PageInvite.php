@@ -21,6 +21,8 @@ class PageInvite extends Model
         'clicks',
         'leads_count',
         'is_active',
+        'full_external_invite_url',
+        'external_invite_code',
     ];
 
     protected $casts = [

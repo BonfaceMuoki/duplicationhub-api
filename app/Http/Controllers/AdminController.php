@@ -388,18 +388,22 @@ class AdminController extends Controller
         $request->validate([
             'status' => ['required', 'in:new,contacted,joined,joining_link_shared,advertisement_link_shared'],
             'notes' => ['nullable', 'string'],
+            'full_external_invite_url' => ['nullable', 'string', 'url'],
+            'external_invite_code' => ['nullable', 'string', 'unique:page_invites,external_invite_code']
         ]);
 
         $lead = $this->leadService->updateLeadStatus(
             $lead, 
             $request->status, 
-            $request->notes
+            $request->notes,
+            $request->full_external_invite_url,
+            $request->external_invite_code
         );
 
         return response()->json([
             'success' => true,
             'message' => 'Lead status updated successfully',
-            'data' => $lead
+            // 'data' => $lead
         ]);
     }
 
