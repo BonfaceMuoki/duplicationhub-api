@@ -8,6 +8,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class MessagingService
 {
@@ -118,7 +120,7 @@ class MessagingService
     /**
      * Send welcome messages to a new lead
      */
-    public function sendWelcomeMessages(Lead $lead, Page $page, User $user): array
+    public function sendWelcomeMessages(Lead $lead, Page $page, User $user, bool $isNewUser = false): array
     {
         $results = [
             'email_sent' => false,
@@ -129,7 +131,7 @@ class MessagingService
         try {
             // Send welcome email
             if ($user->email) {
-                $results['email_sent'] = $this->sendWelcomeEmail($lead, $page, $user);
+                $results['email_sent'] = $this->sendWelcomeEmail($lead, $page, $user, $isNewUser);
             }
 
             // Send WhatsApp message
@@ -151,19 +153,39 @@ class MessagingService
     /**
      * Send welcome email to new lead
      */
-    private function sendWelcomeEmail(Lead $lead, Page $page, User $user): bool
+    private function sendWelcomeEmail(Lead $lead, Page $page, User $user, bool $isNewUser = false): bool
     {
         try {
             $emailData = [
                 'name' => $user->first_name,
                 'page_title' => $page->title,
                 'page_headline' => $page->headline,
-                'my_link' => url("/{$page->slug}?ref={$lead->submitterInvite->handle}"),
-                'redirect_url' => $this->generateRedirectUrl($page, $lead->referrerInvite->handle),
                 'page_summary' => $page->summary,
-                'cta_text' => $page->cta_text,
-                'cta_subtext' => $page->cta_subtext,
+                'is_new_user' => $isNewUser,
+                'whatsapp_number' => $lead->whatsapp_number,
+                'email' => $user->email,
             ];
+
+            // Generate password reset link for new users
+            if ($isNewUser) {
+                $resetToken = Str::random(64);
+                
+                // Store token in password_resets table
+                DB::table('password_resets')->updateOrInsert(
+                    ['email' => $user->email],
+                    [
+                        'email' => $user->email,
+                        'token' => $resetToken,
+                        'created_at' => now()
+                    ]
+                );
+
+                // Build reset URL using FRONT_END_BASE_URL from .env
+                $frontendUrl = env('FRONT_END_BASE_URL', 'http://localhost:3000');
+                $resetUrl = rtrim($frontendUrl, '/') . '/reset-password?token=' . $resetToken . '&email=' . urlencode($user->email);
+                
+                $emailData['reset_url'] = $resetUrl;
+            }
 
             // Send email based on user type or use default template
             Mail::send('emails.leads.welcome', $emailData, function ($message) use ($user, $page) {
@@ -173,7 +195,9 @@ class MessagingService
 
             Log::info('Welcome email sent successfully', [
                 'lead_id' => $lead->id,
-                'email' => $user->email
+                'email' => $user->email,
+                'is_new_user' => $isNewUser,
+                'password_reset_sent' => $isNewUser
             ]);
 
             return true;
@@ -356,13 +380,10 @@ class MessagingService
      */
     private function generateWelcomeWhatsAppMessage(Lead $lead, Page $page, User $user): string
     {
-        $myLink = url("/{$page->slug}?ref={$lead->submitterInvite->handle}");
-        
         return "Hi {$user->first_name}! 👋\n\n" .
-               "Welcome to {$page->title}!\n\n" .
-               "{$page->headline}\n\n" .
-               "Your personal referral link: {$myLink}\n\n" .
-               "Share this link with friends and earn rewards!\n\n" .
+               "Thank you for your interest in {$page->title}!\n\n" .
+               "We have successfully received your interest and someone from our team will get back to you soon through this WhatsApp number.\n\n" .
+               "We look forward to helping you achieve your goals!\n\n" .
                "Best regards,\nThe {$page->title} Team";
     }
 

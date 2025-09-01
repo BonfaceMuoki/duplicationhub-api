@@ -1,11 +1,12 @@
 @extends('layouts.master')
 
-@section('title', $seoData['title'])
-@section('meta_description', $seoData['description'])
-@section('meta_keywords', $seoData['keywords'])
+@section('title', 'Business Insights & Strategies - Duplication Hub')
+@section('meta_description', 'Discover our collection of business tips, growth strategies, and marketing insights. Learn from experts and transform your business today.')
+@section('meta_keywords', 'business growth, strategy, insights, marketing, lead generation, referral marketing')
 
-@section('og_type', $seoData['og_type'])
-@section('canonical_url', $seoData['canonical_url'])
+@section('og_type', 'website')
+@section('canonical_url', url()->current())
+@section('og_image', asset('assets/emails/welcome_.png'))
 
 @section('content')
 <!-- Hero Section -->

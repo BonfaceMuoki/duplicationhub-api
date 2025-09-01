@@ -73,10 +73,9 @@ class PageViewController extends Controller
             ]);
         }
 
-        // For web requests, return view with Open Graph tags
+        // For web requests, return view with page data
         return view('pages.show', [
-            'page' => $pageData,
-            'ogTags' => $this->generateOpenGraphTags($page, $ref)
+            'page' => $page
         ]);
     }
 

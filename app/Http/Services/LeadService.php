@@ -23,32 +23,8 @@ class LeadService
         try {
             DB::beginTransaction();
 
-            // Find the page and referrer invite
+            // Find the page
             $page = Page::findOrFail($data['page_id']);
-            
-            // Find or create the referrer invite
-            $referrerInvite = PageInvite::where('page_id', $page->id)
-                ->where('handle', $data['ref'])
-                ->first();
-            
-            // If no referrer invite exists, create a default one
-            if (!$referrerInvite) {
-                $referrerInvite = PageInvite::create([
-                    'page_id' => $page->id,
-                    'user_id' => $page->user_id, // Use the page owner as the referrer
-                    'handle' => $data['ref'],
-                    'clicks' => 0,
-                    'leads_count' => 0,
-                    'is_active' => true,
-                ]);
-                
-                // Initialize closure table for the new referrer invite
-                DB::table('page_invite_closure')->insert([
-                    'ancestor_invite_id' => $referrerInvite->id,
-                    'descendant_invite_id' => $referrerInvite->id,
-                    'depth' => 0,
-                ]);
-            }
 
             // Check if user already exists
             $user = User::where('email', $data['email'])->first();
@@ -72,20 +48,65 @@ class LeadService
                 
             }
 
-            // Generate unique handle for this submitter
-            $submitterHandle = $this->generateUniqueHandle($page->id, $data['first_name']);
+            // Find or create the user's invite for this page
+            $userInvite = PageInvite::where('page_id', $page->id)
+                ->where('user_id', $user->id)
+                ->first();
             
-            // Create submitter invite
-            $submitterInvite = PageInvite::create([
-                'page_id' => $page->id,
-                'user_id' => $user->id,
-                'clicks' => 0,
-                'leads_count' => 0,
-                'is_active' => true,
-            ]);
+            if (!$userInvite) {
+                // Create user invite (let model generate handle automatically)
+                $userInvite = PageInvite::updateOrCreate([
+                    'page_id' => $page->id,
+                    'user_id' => $user->id,
+                    'clicks' => 0,
+                    'leads_count' => 0,
+                    'is_active' => true,
+                ]);
+                
+                Log::info('Created user invite', [
+                    'page_id' => $page->id,
+                    'user_id' => $user->id,
+                    'invite_id' => $userInvite->id,
+                    'handle' => $userInvite->handle
+                ]);
+                
+                // Initialize closure table for the new user invite
+                DB::table('page_invite_closure')->insert([
+                    'ancestor_invite_id' => $userInvite->id,
+                    'descendant_invite_id' => $userInvite->id,
+                    'depth' => 0,
+                ]);
+            } else {
+                Log::info('Using existing user invite', [
+                    'page_id' => $page->id,
+                    'user_id' => $user->id,
+                    'invite_id' => $userInvite->id,
+                    'handle' => $userInvite->handle
+                ]);
+                
+                // Check if closure table entry exists for this invite
+                $existingClosure = DB::table('page_invite_closure')
+                    ->where('ancestor_invite_id', $userInvite->id)
+                    ->where('descendant_invite_id', $userInvite->id)
+                    ->where('depth', 0)
+                    ->first();
+                
+                if (!$existingClosure) {
+                    // Initialize closure table for the existing user invite
+                    DB::table('page_invite_closure')->insert([
+                        'ancestor_invite_id' => $userInvite->id,
+                        'descendant_invite_id' => $userInvite->id,
+                        'depth' => 0,
+                    ]);
+                }
+            }
 
-            // Get the auto-generated handle
-            $submitterHandle = $submitterInvite->handle;
+            // The user's invite serves as both submitter and referrer
+            $submitterInvite = $userInvite;
+            $referrerInvite = $userInvite;
+            
+            // Get the handle
+            $submitterHandle = $userInvite->handle;
             
             // Send password email to the new user (after invite is created)
             if (isset($plainPassword)) {
@@ -109,7 +130,7 @@ class LeadService
                 'status' => LeadStatus::NEW,
             ]);
 
-            // Update closure table
+            // Update closure table - the submitter (referrer) is the ancestor, and their own invite is the descendant
             $this->updateClosureTable($referrerInvite->id, $submitterInvite->id);
 
             // Update counts
@@ -332,31 +353,40 @@ class LeadService
      */
     private function updateClosureTable(int $ancestorId, int $descendantId): void
     {
-        // Insert self-reference for descendant
-        DB::table('page_invite_closure')->insert([
-            'ancestor_invite_id' => $descendantId,
-            'descendant_invite_id' => $descendantId,
-            'depth' => 0,
-        ]);
-
-        // Insert relationship to ancestor
-        DB::table('page_invite_closure')->insert([
-            'ancestor_invite_id' => $ancestorId,
-            'descendant_invite_id' => $descendantId,
-            'depth' => 1,
-        ]);
-
-        // Insert all ancestor relationships
-        $ancestors = DB::table('page_invite_closure')
-            ->where('descendant_invite_id', $ancestorId)
-            ->where('depth', '>', 0)
-            ->get();
-
-        foreach ($ancestors as $ancestor) {
-            DB::table('page_invite_closure')->insert([
-                'ancestor_invite_id' => $ancestor->ancestor_invite_id,
+        try {
+            // Insert self-reference for descendant
+            DB::table('page_invite_closure')->insertOrIgnore([
+                'ancestor_invite_id' => $descendantId,
                 'descendant_invite_id' => $descendantId,
-                'depth' => $ancestor->depth + 1,
+                'depth' => 0,
+            ]);
+
+            // Insert relationship to ancestor
+            DB::table('page_invite_closure')->insertOrIgnore([
+                'ancestor_invite_id' => $ancestorId,
+                'descendant_invite_id' => $descendantId,
+                'depth' => 1,
+            ]);
+
+            // Insert all ancestor relationships
+            $ancestors = DB::table('page_invite_closure')
+                ->where('descendant_invite_id', $ancestorId)
+                ->where('depth', '>', 0)
+                ->get();
+
+            foreach ($ancestors as $ancestor) {
+                DB::table('page_invite_closure')->insertOrIgnore([
+                    'ancestor_invite_id' => $ancestor->ancestor_invite_id,
+                    'descendant_invite_id' => $descendantId,
+                    'depth' => $ancestor->depth + 1,
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Log the error but don't fail the entire operation
+            Log::warning('Failed to update closure table', [
+                'ancestor_id' => $ancestorId,
+                'descendant_id' => $descendantId,
+                'error' => $e->getMessage()
             ]);
         }
     }

@@ -99,7 +99,7 @@ class BlogController extends Controller
             'keywords' => $page->meta_keywords ?? 'business, growth, strategy',
             'og_type' => 'article',
             'canonical_url' => url("/pages/{$page->slug}"),
-            'og_image' => $page->og_image_url ?: $page->image_url,
+            'og_image' => $page->og_image_url ?: $page->full_image_url,
             'published_time' => $page->created_at->toISOString(),
             'modified_time' => $page->updated_at->toISOString(),
             'author' => $page->user->name ?? 'Admin',

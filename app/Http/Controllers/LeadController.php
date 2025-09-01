@@ -6,6 +6,7 @@ use App\Models\Lead;
 use App\Models\Page;
 use App\Models\PageInvite;
 use App\Models\User;
+use App\Models\PageInviteClosure;
 use App\Enums\LeadStatus;
 use App\Http\Services\MessagingService;
 use Illuminate\Http\Request;
@@ -50,11 +51,31 @@ class LeadController extends Controller
             // Find the page and referrer invite
             $page = Page::findOrFail($request->page_id);
             
+            // Check if a lead with this email already exists for this page
+            $existingLead = Lead::where('page_id', $page->id)
+                ->where('email', $request->email)
+                ->first();
+
+            
+                
+            if ($existingLead) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You have already submitted your interest for this page. Please contact the page owner if you need to update your information.',
+                    'data' => [
+                        'lead_id' => $existingLead->id,
+                        'submitted_at' => $existingLead->created_at,
+                    ]
+                ], 409); // 409 Conflict status code
+            }
+            
             // Find or create the referrer invite
             $referrerInvite = PageInvite::where('page_id', $page->id)
-                ->where('handle', $request->ref)
+                ->where('handle', ($request->ref=='direct'|| $request->ref==null)?'duplication':$request->ref)
+                ->orderBy('id', 'desc')
                 ->first();
-            
+               
+           
             // If no referrer invite exists, create a default one
             if (!$referrerInvite) {
                 $referrerInvite = PageInvite::create([
@@ -67,7 +88,8 @@ class LeadController extends Controller
                 ]);
                 
                 // Initialize closure table for the new referrer invite
-                DB::table('page_invite_closure')->insert([
+           
+                PageInviteClosure::updateOrCreate([
                     'ancestor_invite_id' => $referrerInvite->id,
                     'descendant_invite_id' => $referrerInvite->id,
                     'depth' => 0,
@@ -76,6 +98,7 @@ class LeadController extends Controller
 
             // Check if user already exists
             $user = User::where('email', $request->email)->first();
+            $isNewUser = false;
             
             if (!$user) {
                 // Create new user account for the lead
@@ -90,18 +113,27 @@ class LeadController extends Controller
                     'password' => Hash::make(Str::random(16)), // Temporary password
                     'account_status' => 'active',
                 ]);
+                $user->assignRole('Normal User');
+                $isNewUser = true;
             }
 
-            // Create submitter invite (handle will be auto-generated)
-            $submitterInvite = PageInvite::create([
-                'page_id' => $page->id,
-                'user_id' => $user->id,
-                'clicks' => 0,
-                'leads_count' => 0,
-                'is_active' => true,
-            ]);
+            // Find existing submitter invite or create a new one
+            $submitterInvite = PageInvite::where('page_id', $page->id)
+                ->where('user_id', $user->id)
+                ->first();
 
-            // Get the auto-generated handle
+            if (!$submitterInvite) {
+                // Create new submitter invite (handle will be auto-generated)
+                $submitterInvite = PageInvite::create([
+                    'page_id' => $page->id,
+                    'user_id' => $user->id,
+                    'clicks' => 0,
+                    'leads_count' => 0,
+                    'is_active' => true,
+                ]);
+            }
+
+            // Get the handle (either existing or newly generated)
             $submitterHandle = $submitterInvite->handle;
 
             // Create the lead
@@ -131,7 +163,7 @@ class LeadController extends Controller
             DB::commit();
 
             // Send welcome messages (email and WhatsApp)
-            $messagingResults = $this->messagingService->sendWelcomeMessages($lead, $page, $user);
+            $messagingResults = $this->messagingService->sendWelcomeMessages($lead, $page, $user, $isNewUser);
 
             // Generate personalized link for the submitter
             $myLink = generatePageUrl($page->id, $submitterHandle);
@@ -342,18 +374,24 @@ class LeadController extends Controller
     private function updateClosureTable(int $ancestorId, int $descendantId): void
     {
         // Insert self-reference for descendant
-        DB::table('page_invite_closure')->insert([
-            'ancestor_invite_id' => $descendantId,
-            'descendant_invite_id' => $descendantId,
-            'depth' => 0,
-        ]);
+        // DB::table('page_invite_closure')->insert([
+        //     'ancestor_invite_id' => $descendantId,
+        //     'descendant_invite_id' => $descendantId,
+        //     'depth' => 0,
+        // ]);
 
         // Insert relationship to ancestor
-        DB::table('page_invite_closure')->insert([
-            'ancestor_invite_id' => $ancestorId,
-            'descendant_invite_id' => $descendantId,
-            'depth' => 1,
-        ]);
+   
+        PageInviteClosure::updateOrCreate(
+            [
+                'ancestor_invite_id' => $ancestorId,
+                'descendant_invite_id' => $descendantId,
+            ],
+            [
+                'depth' => 1,
+            ]
+        );
+        
 
         // Insert all ancestor relationships
         $ancestors = DB::table('page_invite_closure')
@@ -361,13 +399,18 @@ class LeadController extends Controller
             ->where('depth', '>', 0)
             ->get();
 
-        foreach ($ancestors as $ancestor) {
-            DB::table('page_invite_closure')->insert([
-                'ancestor_invite_id' => $ancestor->ancestor_invite_id,
-                'descendant_invite_id' => $descendantId,
-                'depth' => $ancestor->depth + 1,
-            ]);
-        }
+            foreach ($ancestors as $ancestor) {
+                PageInviteClosure::updateOrCreate(
+                    [
+                        'ancestor_invite_id' => $ancestor->ancestor_invite_id,
+                        'descendant_invite_id' => $descendantId,
+                    ],
+                    [
+                        'depth' => $ancestor->depth + 1,
+                    ]
+                );
+            }
+            
     }
 
     /**
