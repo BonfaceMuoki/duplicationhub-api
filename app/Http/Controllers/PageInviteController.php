@@ -237,6 +237,233 @@ class PageInviteController extends Controller
     }
 
     /**
+     * Get complete invites tree structure for a page
+     */
+    public function getInvitesTree(Request $request)
+    {
+        $request->validate([
+            'page_id' => 'required|integer|exists:pages,id',
+            'root_invite_id' => 'nullable|integer|exists:page_invites,id',
+            'user_id' => 'nullable|integer|exists:users,id',
+            'include_inactive' => 'nullable|boolean',
+        ]);
+
+        $pageId = $request->page_id;
+        $rootInviteId = $request->root_invite_id;
+        $userId = $request->user_id;
+        $includeInactive = $request->boolean('include_inactive', false);
+
+        // If no root invite specified, find the root invite for the page
+        if (!$rootInviteId) {
+            $rootInvite = PageInvite::where('page_id', $pageId)
+                ->whereHas('ancestors', function ($query) {
+                    $query->where('depth', 0);
+                })
+                ->first();
+
+            if (!$rootInvite) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No root invite found for this page'
+                ], 404);
+            }
+            $rootInviteId = $rootInvite->id;
+        }
+
+        // Get the root invite with all its data including inviter details
+        $rootInvite = PageInvite::with(['user', 'page'])
+            ->findOrFail($rootInviteId);
+
+        // Add inviter information to root invite
+        $rootInviteData = $this->formatInviteWithInviterDetails($rootInvite);
+
+        // Build the tree structure recursively with enhanced user details
+        $tree = $this->buildInviteTree($rootInviteId, $pageId, $userId, $includeInactive);
+
+        // Get tree statistics
+        $stats = $this->getTreeStatistics($rootInviteId, $pageId, $userId, $includeInactive);
+
+        // Get page information
+        $page = \App\Models\Page::with('user')->findOrFail($pageId);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'page' => [
+                    'id' => $page->id,
+                    'title' => $page->title,
+                    'slug' => $page->slug,
+                    'owner' => [
+                        'id' => $page->user->id,
+                        'name' => $page->user->full_name,
+                        'email' => $page->user->email,
+                    ]
+                ],
+                'root_invite' => $rootInviteData,
+                'tree' => $tree,
+                'statistics' => $stats,
+                'filters_applied' => [
+                    'page_id' => $pageId,
+                    'user_id' => $userId,
+                    'include_inactive' => $includeInactive,
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Build the invite tree structure recursively
+     */
+    private function buildInviteTree($inviteId, $pageId, $userId = null, $includeInactive = false, $maxDepth = 10)
+    {
+        // Get direct descendants (depth = 1)
+        $query = PageInvite::whereHas('ancestors', function ($query) use ($inviteId) {
+            $query->where('ancestor_invite_id', $inviteId)
+                  ->where('depth', 1);
+        })
+        ->with(['user', 'page']);
+
+        // Apply user filter if specified
+        if ($userId) {
+            $query->where('user_id', $userId);
+        }
+
+        // Apply active filter if specified
+        if (!$includeInactive) {
+            $query->where('is_active', true);
+        }
+
+        $directDescendants = $query->get();
+
+        $children = [];
+
+        foreach ($directDescendants as $descendant) {
+            $child = $this->formatInviteWithInviterDetails($descendant);
+            $child['children'] = $this->buildInviteTree($descendant->id, $pageId, $userId, $includeInactive, $maxDepth - 1);
+            $children[] = $child;
+        }
+
+        return $children;
+    }
+
+    /**
+     * Get tree statistics
+     */
+    private function getTreeStatistics($rootInviteId, $pageId, $userId = null, $includeInactive = false)
+    {
+        // Get all descendants of the root invite
+        $query = PageInvite::whereHas('ancestors', function ($query) use ($rootInviteId) {
+            $query->where('ancestor_invite_id', $rootInviteId)
+                  ->where('depth', '>', 0);
+        });
+
+        // Apply user filter if specified
+        if ($userId) {
+            $query->where('user_id', $userId);
+        }
+
+        // Apply active filter if specified
+        if (!$includeInactive) {
+            $query->where('is_active', true);
+        }
+
+        $allDescendants = $query->get();
+
+        // Calculate statistics
+        $totalInvites = $allDescendants->count() + 1; // +1 for root
+        $totalClicks = $allDescendants->sum('clicks');
+        $totalLeads = $allDescendants->sum('leads_count');
+        $activeInvites = $allDescendants->where('is_active', true)->count() + 1; // +1 for root
+
+        // Get depth distribution
+        $depthDistribution = [];
+        for ($i = 1; $i <= 10; $i++) {
+            $depthQuery = PageInvite::whereHas('ancestors', function ($query) use ($rootInviteId) {
+                $query->where('ancestor_invite_id', $rootInviteId)
+                      ->where('depth', $i);
+            });
+
+            // Apply same filters for depth distribution
+            if ($userId) {
+                $depthQuery->where('user_id', $userId);
+            }
+            if (!$includeInactive) {
+                $depthQuery->where('is_active', true);
+            }
+
+            $count = $depthQuery->count();
+            
+            if ($count > 0) {
+                $depthDistribution[$i] = $count;
+            }
+        }
+
+        // Get unique users in the tree
+        $uniqueUsers = $allDescendants->pluck('user_id')->unique()->count() + 1; // +1 for root
+
+        return [
+            'total_invites' => $totalInvites,
+            'total_clicks' => $totalClicks,
+            'total_leads' => $totalLeads,
+            'active_invites' => $activeInvites,
+            'unique_users' => $uniqueUsers,
+            'conversion_rate' => $totalClicks > 0 ? round(($totalLeads / $totalClicks) * 100, 2) : 0,
+            'depth_distribution' => $depthDistribution,
+            'max_depth' => count($depthDistribution) > 0 ? max(array_keys($depthDistribution)) : 0,
+        ];
+    }
+
+    /**
+     * Format invite with detailed inviter information
+     */
+    private function formatInviteWithInviterDetails($invite)
+    {
+        // Get the direct inviter (parent at depth 1)
+        $inviter = PageInvite::whereHas('descendants', function ($query) use ($invite) {
+            $query->where('descendant_invite_id', $invite->id)
+                  ->where('depth', 1);
+        })->with('user')->first();
+
+        return [
+            'id' => $invite->id,
+            'handle' => $invite->handle,
+            'join_url' => $invite->join_url,
+            'clicks' => $invite->clicks,
+            'leads_count' => $invite->leads_count,
+            'is_active' => $invite->is_active,
+            'created_at' => $invite->created_at,
+            'updated_at' => $invite->updated_at,
+            'user' => [
+                'id' => $invite->user->id,
+                'name' => $invite->user->full_name,
+                'first_name' => $invite->user->first_name,
+                'middle_name' => $invite->user->middle_name,
+                'last_name' => $invite->user->last_name,
+                'email' => $invite->user->email,
+                'phone_number' => $invite->user->phone_number,
+                'date_of_birth' => $invite->user->date_of_birth,
+                'gender' => $invite->user->gender,
+                'account_status' => $invite->user->account_status,
+            ],
+            'page' => [
+                'id' => $invite->page->id,
+                'title' => $invite->page->title,
+                'slug' => $invite->page->slug,
+                'is_public' => $invite->page->is_public ?? false,
+            ],
+            'inviter' => $inviter ? [
+                'id' => $inviter->id,
+                'handle' => $inviter->handle,
+                'user' => [
+                    'id' => $inviter->user->id,
+                    'name' => $inviter->user->full_name,
+                    'email' => $inviter->user->email,
+                ]
+            ] : null,
+        ];
+    }
+
+    /**
      * Create a new page invite link share
      */
     public function createLinkShare(Request $request)

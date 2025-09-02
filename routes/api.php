@@ -78,6 +78,7 @@ Route::middleware('jwt.cookie')->group(function () {
         Route::put('/{invite}', [PageInviteController::class, 'updateInvite']);
         Route::delete('/{invite}', [PageInviteController::class, 'deleteInvite']);
         Route::get('/{invite}/referral-tree', [PageInviteController::class, 'getReferralTree']);
+        Route::get('/tree', [PageInviteController::class, 'getInvitesTree']);
         
         // Referral analytics and statistics
         Route::get('/{inviteId}/direct-referrals', [ReferralController::class, 'getDirectReferrals']);
