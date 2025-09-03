@@ -130,8 +130,8 @@ class LeadService
                 'status' => LeadStatus::NEW,
             ]);
 
-            // Update closure table - the submitter (referrer) is the ancestor, and their own invite is the descendant
-            $this->updateClosureTable($referrerInvite->id, $submitterInvite->id);
+            // Don't update closure table for self-referrals - the closure table is already correct
+            // The self-reference was created when the invite was first created
 
             // Update counts
             $referrerInvite->increment('leads_count');
@@ -385,6 +385,16 @@ class LeadService
     private function updateClosureTable(int $ancestorId, int $descendantId): void
     {
         try {
+            // If ancestor and descendant are the same, only insert self-reference
+            if ($ancestorId === $descendantId) {
+                DB::table('page_invite_closure')->insertOrIgnore([
+                    'ancestor_invite_id' => $descendantId,
+                    'descendant_invite_id' => $descendantId,
+                    'depth' => 0,
+                ]);
+                return;
+            }
+
             // Insert self-reference for descendant
             DB::table('page_invite_closure')->insertOrIgnore([
                 'ancestor_invite_id' => $descendantId,

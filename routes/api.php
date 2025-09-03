@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\PageViewController;
 use App\Http\Controllers\PageInviteController;
+use App\Http\Controllers\PageRequestController;
 use App\Http\Controllers\ReferralController;
 use App\Http\Services\MessagingService;
 use Illuminate\Support\Facades\Route;
@@ -43,6 +44,9 @@ Route::prefix('pages')->group(function () {
 
 // Lead submission (public)
 Route::post('/leads/submit', [LeadController::class, 'submit']);
+
+// Page request submission (public)
+Route::post('/page-requests/submit', [PageRequestController::class, 'submit']);
 
 // Invite tracking (public)
 Route::post('/invites/track-click', [PageInviteController::class, 'trackClick']);
@@ -151,4 +155,10 @@ Route::middleware(['jwt.cookie', 'role:super admin'])
     
     // Dashboard
     Route::get('/dashboard', [AdminController::class, 'dashboard']);
+    
+    // Page request management
+    Route::prefix('page-requests')->group(function () {
+        Route::get('/', [PageRequestController::class, 'index']);
+        Route::put('/{id}/status', [PageRequestController::class, 'updateStatus']);
+    });
 });

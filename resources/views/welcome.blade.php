@@ -74,11 +74,8 @@
             <span class="font-semibold text-[#00FF00]">Duplicate and Win.</span>
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="#what-is" class="bg-[#00FF00] text-[#FFFFFF] px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-all duration-200 transform hover:scale-105 shadow-lg">
-                Learn More
-            </a>
-            <a href="#who-this-is-for" class="bg-white text-[#000080] px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-200 transform hover:scale-105 shadow-lg">
-                Learn More
+            <a onclick="openPageRequestModal()"  class="bg-[#00FF00] text-[#FFFFFF] px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-all duration-200 transform hover:scale-105 shadow-lg">
+                Ask for Pages
             </a>
         </div>
     </div>
@@ -298,10 +295,10 @@
             </p>
             
             <div class="text-center">
-                <a href="#" class="inline-flex items-center px-8 py-4 bg-[#000080] text-[#FFFFFF] font-bold rounded-xl hover:bg-blue-700 transition-colors duration-200">
-                    📩 Click here to request your personalized page
-                </a>
-                <p class="text-sm text-[#808080] mt-2">[Insert Google Form or submission link]</p>
+                <button onclick="openPageRequestModal()" class="inline-flex items-center px-8 py-4 bg-[#000080] text-[#FFFFFF] font-bold rounded-xl hover:bg-blue-700 transition-colors duration-200">
+                    📩 Click here to request for pages
+                </button>
+                <p class="text-sm text-[#808080] mt-2">Request a custom duplication page for your business</p>
             </div>
         </div>
     </div>
@@ -326,4 +323,180 @@
         </p>
     </div>
 </section>
+
+<!-- Page Request Modal -->
+<div id="pageRequestModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">Request a Page</h3>
+                <button onclick="closePageRequestModal()" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">
+                    ×
+                </button>
+            </div>
+            
+            <!-- Modal Form -->
+            <form id="pageRequestForm" class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                    <input type="text" id="name" name="name" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                           placeholder="Enter your full name">
+                </div>
+                
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                    <input type="email" id="email" name="email" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                           placeholder="Enter your email address">
+                </div>
+                
+                <div>
+                    <label for="message" class="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                    <textarea id="message" name="message" rows="4" required 
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                              placeholder="Tell us about your business and what kind of duplication page you need..."></textarea>
+                </div>
+                
+                <!-- Submit Button -->
+                <div class="pt-4">
+                    <button type="submit" id="submitBtn" 
+                            class="w-full bg-[#000080] text-white py-3 px-6 rounded-lg font-bold hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center">
+                        <span id="submitText">Submit Request</span>
+                        <svg id="loadingSpinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Success/Error Messages -->
+            <div id="messageContainer" class="mt-4 hidden">
+                <div id="successMessage" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg hidden">
+                    <strong>Success!</strong> Your page request has been submitted successfully. We'll get back to you soon!
+                </div>
+                <div id="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg hidden">
+                    <strong>Error!</strong> <span id="errorText"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@endsection
+
+@section('additional_js')
+<script>
+function openPageRequestModal() {
+    document.getElementById('pageRequestModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePageRequestModal() {
+    document.getElementById('pageRequestModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    resetForm();
+}
+
+function resetForm() {
+    document.getElementById('pageRequestForm').reset();
+    document.getElementById('messageContainer').classList.add('hidden');
+    document.getElementById('successMessage').classList.add('hidden');
+    document.getElementById('errorMessage').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitText').textContent = 'Submit Request';
+    document.getElementById('loadingSpinner').classList.add('hidden');
+}
+
+function showMessage(type, message = '') {
+    const container = document.getElementById('messageContainer');
+    const successMsg = document.getElementById('successMessage');
+    const errorMsg = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    
+    container.classList.remove('hidden');
+    
+    if (type === 'success') {
+        successMsg.classList.remove('hidden');
+        errorMsg.classList.add('hidden');
+    } else {
+        errorMsg.classList.remove('hidden');
+        successMsg.classList.add('hidden');
+        errorText.textContent = message;
+    }
+}
+
+// Handle form submission
+document.getElementById('pageRequestForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitText.textContent = 'Submitting...';
+    loadingSpinner.classList.remove('hidden');
+    
+    // Hide any previous messages
+    document.getElementById('messageContainer').classList.add('hidden');
+    
+    // Get form data
+    const formData = new FormData(this);
+    const data = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        message: formData.get('message')
+    };
+    
+    try {
+        const response = await fetch('/api/page-requests/submit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showMessage('success');
+            // Reset form after successful submission
+            setTimeout(() => {
+                closePageRequestModal();
+            }, 2000);
+        } else {
+            const errorMsg = result.message || 'Failed to submit request. Please try again.';
+            showMessage('error', errorMsg);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showMessage('error', 'Network error. Please check your connection and try again.');
+    } finally {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitText.textContent = 'Submit Request';
+        loadingSpinner.classList.add('hidden');
+    }
+});
+
+// Close modal when clicking outside
+document.getElementById('pageRequestModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePageRequestModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closePageRequestModal();
+    }
+});
+</script>
 @endsection 

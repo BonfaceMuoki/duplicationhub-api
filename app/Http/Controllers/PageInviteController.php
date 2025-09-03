@@ -249,22 +249,51 @@ class PageInviteController extends Controller
         ]);
 
         $pageId = $request->page_id;
+        
         $rootInviteId = $request->root_invite_id;
+        
         $userId = $request->user_id;
         $includeInactive = $request->boolean('include_inactive', false);
 
-        // If no root invite specified, find the root invite for the page
+        // If no root invite specified, find the invite that has closure table entries (actual root)
         if (!$rootInviteId) {
+            // Get the page to find the owner
+            $page = \App\Models\Page::findOrFail($pageId);
+            
+            // First, try to find the page owner's invite (most likely to be the root)
             $rootInvite = PageInvite::where('page_id', $pageId)
-                ->whereHas('ancestors', function ($query) {
-                    $query->where('depth', 0);
-                })
+                ->where('user_id', $page->user_id)
                 ->first();
+
+            // If no owner invite found, try to find an invite that has no ancestors (true root)
+            if (!$rootInvite) {
+                $rootInvite = PageInvite::where('page_id', $pageId)
+                    ->whereDoesntHave('ancestors', function ($query) {
+                        $query->where('depth', '>', 0);
+                    })
+                    ->first();
+            }
+
+            // If no true root found, look for an invite that has closure table entries with depth 0
+            if (!$rootInvite) {
+                $rootInvite = PageInvite::where('page_id', $pageId)
+                    ->whereHas('ancestors', function ($query) {
+                        $query->where('depth', 0);
+                    })
+                    ->first();
+            }
+
+            // If still no proper root found, fall back to first invite for the page
+            if (!$rootInvite) {
+                $rootInvite = PageInvite::where('page_id', $pageId)
+                    ->orderBy('created_at', 'asc')
+                    ->first();
+            }
 
             if (!$rootInvite) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No root invite found for this page'
+                    'message' => 'No invites found for this page'
                 ], 404);
             }
             $rootInviteId = $rootInvite->id;
@@ -283,8 +312,8 @@ class PageInviteController extends Controller
         // Get tree statistics
         $stats = $this->getTreeStatistics($rootInviteId, $pageId, $userId, $includeInactive);
 
-        // Get page information
-        $page = \App\Models\Page::with('user')->findOrFail($pageId);
+        // Get page information (reuse the page we already fetched)
+        $page->load('user');
 
         return response()->json([
             'success' => true,
@@ -304,6 +333,7 @@ class PageInviteController extends Controller
                 'statistics' => $stats,
                 'filters_applied' => [
                     'page_id' => $pageId,
+                    'root_invite_id' => $rootInviteId,
                     'user_id' => $userId,
                     'include_inactive' => $includeInactive,
                 ]
@@ -316,10 +346,11 @@ class PageInviteController extends Controller
      */
     private function buildInviteTree($inviteId, $pageId, $userId = null, $includeInactive = false, $maxDepth = 10)
     {
-        // Get direct descendants (depth = 1)
+        // Get direct descendants (depth > 0, but not self-reference)
         $query = PageInvite::whereHas('ancestors', function ($query) use ($inviteId) {
             $query->where('ancestor_invite_id', $inviteId)
-                  ->where('depth', 1);
+                  ->where('depth', '>', 0)
+                  ->where('descendant_invite_id', '!=', $inviteId);
         })
         ->with(['user', 'page']);
 
@@ -378,7 +409,7 @@ class PageInviteController extends Controller
         // Get depth distribution
         $depthDistribution = [];
         for ($i = 1; $i <= 10; $i++) {
-            $depthQuery = PageInvite::whereHas('ancestors', function ($query) use ($rootInviteId) {
+            $depthQuery = PageInvite::whereHas('ancestors', function ($query) use ($rootInviteId, $i) {
                 $query->where('ancestor_invite_id', $rootInviteId)
                       ->where('depth', $i);
             });
