@@ -7,6 +7,8 @@ use App\Http\Services\LeadService;
 use App\Models\Page;
 use App\Models\Lead;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class AdminController extends Controller
 {
