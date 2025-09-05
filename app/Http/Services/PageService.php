@@ -55,7 +55,33 @@ class PageService
             return null; // or throw $e again depending on your design
         }
     }
-   
+    private function createAdminInvite(Page $page): void
+    {
+        try {
+            $user = JWTAuth::user();
+            $handle = $this->generateInviteHandle($page, $user->first_name ?: 'admin');
+    
+            PageInvite::create([
+                'page_id' => $page->id,
+                'user_id' => $user->id,
+                'handle' => $handle,
+                'clicks' => 0,
+                'leads_count' => 0,
+                'is_active' => true,
+            ]);
+    
+        } catch (\Exception $e) {
+            Log::error('Failed to create admin invite', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'page_id' => $page->id,
+                'user_id' => $user->id ?? null,
+            ]);
+    
+            // optionally rethrow if you want the failure to bubble up
+            // throw $e;
+        }
+    }
 
     public function updatePage(Page $page, array $data): Page
     {
