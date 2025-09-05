@@ -310,15 +310,15 @@ class AuthenticationService
                 }
                 
                 // Log token parsing info for debugging
-                \Log::info('JWT Token parsed successfully', [
-                    'user_id' => $userId,
-                    'token_exp' => $payload['exp'] ?? 'not_set',
-                    'current_time' => time(),
-                    'token_iat' => $payload['iat'] ?? 'not_set',
-                    'token_iss' => $payload['iss'] ?? 'not_set',
-                    'raw_payload' => $payloadJson,
-                    'decoded_payload' => $payload
-                ]);
+                // \Log::info('JWT Token parsed successfully', [
+                //     'user_id' => $userId,
+                //     'token_exp' => $payload['exp'] ?? 'not_set',
+                //     'current_time' => time(),
+                //     'token_iat' => $payload['iat'] ?? 'not_set',
+                //     'token_iss' => $payload['iss'] ?? 'not_set',
+                //     'raw_payload' => $payloadJson,
+                //     'decoded_payload' => $payload
+                // ]);
                 
             } catch (\Exception $e) {
                 \Log::error('JWT Token parsing failed', [

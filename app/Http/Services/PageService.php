@@ -13,36 +13,49 @@ use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 class PageService
 {
-    public function createPage(array $data): Page
+    public function createPage(array $data): ?Page
     {
-        // Generate a unique slug if not provided
-        if (!isset($data['slug']) || empty($data['slug'])) {
-            $slug = Str::slug($data['title']);
-            $originalSlug = $slug;
-            $count = 1;
-            while (Page::where('slug', $slug)->exists()) {
-                $slug = $originalSlug . '-' . $count++;
+        try {
+            // Generate a unique slug if not provided
+            if (!isset($data['slug']) || empty($data['slug'])) {
+                $slug = Str::slug($data['title']);
+                $originalSlug = $slug;
+                $count = 1;
+                while (Page::where('slug', $slug)->exists()) {
+                    $slug = $originalSlug . '-' . $count++;
+                }
+                $data['slug'] = $slug;
             }
-            $data['slug'] = $slug;
+    
+            // Assign the current authenticated user as the creator
+            $data['user_id'] = JWTAuth::user()->id;
+    
+            // Set default values for privacy and status
+            $data['is_public'] = $data['is_public'] ?? false;
+            $data['status'] = $data['status'] ?? 'draft';
+    
+            $page = Page::create($data);
+    
+            // Auto-create admin invite for the page creator
+            $this->createAdminInvite($page);
+    
+            // Send page creation notification email
+            $this->sendPageCreationEmail($page);
+    
+            return $page;
+    
+        } catch (Exception $e) {
+            // Log error with context
+            Log::error('Page creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $data
+            ]);
+    
+            return null; // or throw $e again depending on your design
         }
-
-        // Assign the current authenticated user as the creator
-        $data['user_id'] = JWTAuth::user()->id;
-
-        // Set default values for privacy and status
-        $data['is_public'] = $data['is_public'] ?? false;
-        $data['status'] = $data['status'] ?? 'draft';
-
-        $page = Page::create($data);
-
-        // Auto-create admin invite for the page creator
-        $this->createAdminInvite($page);
-
-        // Send page creation notification email
-        $this->sendPageCreationEmail($page);
-
-        return $page;
     }
+   
 
     public function updatePage(Page $page, array $data): Page
     {
@@ -217,19 +230,31 @@ class PageService
         ];
     }
 
-    private function createAdminInvite(Page $page): void
+    public function create(Request $request): JsonResponse
     {
-        $user = JWTAuth::user();
-        $handle = $this->generateInviteHandle($page, $user->first_name ?: 'admin');
-
-        PageInvite::create([
-            'page_id' => $page->id,
-            'user_id' => $user->id,
-            'handle' => $handle,
-            'clicks' => 0,
-            'leads_count' => 0,
-            'is_active' => true,
-        ]);
+        try {
+            $data = $request->all();
+            $page = $this->pageService->createPage($data);
+    
+            return response()->json([
+                'status' => true,
+                'message' => 'Page created successfully.',
+                'data' => $page
+            ], 201);
+    
+        } catch (Exception $e) {
+            // Log error with details
+            Log::error('Page creation failed in controller', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+    
+            return response()->json([
+                'status' => false,
+                'message' => 'An error occurred while creating the page. Please try again later.'
+            ], 500);
+        }
     }
 
     /**

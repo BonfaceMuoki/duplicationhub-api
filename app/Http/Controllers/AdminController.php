@@ -122,65 +122,90 @@ class AdminController extends Controller
 
     public function createPage(Request $request)
     {
-        $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'headline' => ['required', 'string', 'max:255'],
-            'summary' => ['nullable', 'string'],
-            'video_url' => ['nullable', 'url', 'max:255'],
-            'cta_text' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['boolean'],
-            'status' => ['nullable', 'in:draft,published,archived'],
-            'publish_at' => ['nullable', 'date'],
-            'unpublish_at' => ['nullable', 'date', 'after:publish_at'],
-            'sort_order' => ['nullable', 'integer'],
-            'meta_title' => ['nullable', 'string', 'max:255'],
-            'meta_description' => ['nullable', 'string'],
-            'og_image_url' => ['nullable', 'url', 'max:255'],
-            'canonical_url' => ['nullable', 'url', 'max:255'],
-            'is_indexable' => ['boolean'],
-            'cta_subtext' => ['nullable', 'string', 'max:255'],
-            'default_join_url' => ['nullable', 'url', 'max:255'],
-            'capture_mode' => ['nullable', 'in:modal,inline'],
-            'body' => ['nullable', 'string'],
-            'experiment_group' => ['nullable', 'string', 'max:255'],
-            'variant' => ['nullable', 'string', 'max:255'],
-            'allocation_weight' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'consent_text' => ['nullable', 'string'],
-            'show_consent' => ['boolean'],
-            'rate_limit_per_ip_per_day' => ['nullable', 'integer', 'min:0'],
-            'require_https_join' => ['boolean'],
-            'allowed_join_domains' => ['nullable', 'array'],
-            'allowed_join_domains.*' => ['string'],
-            'platform_base_url' => ['nullable', 'url', 'max:255'],
-            // Image upload fields
-            'image' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:10240'], // 10MB max
-            'base64_image' => ['nullable', 'string'],
-        ]);
-
         try {
-            $pageData = $request->all();
+            // Validation
+            $validated = $request->validate([
+                'title' => ['required', 'string', 'max:255'],
+                'headline' => ['required', 'string', 'max:255'],
+                'summary' => ['nullable', 'string'],
+                'video_url' => ['nullable', 'url', 'max:255'],
+                'cta_text' => ['nullable', 'string', 'max:255'],
+                'is_active' => ['boolean'],
+                'status' => ['nullable', 'in:draft,published,archived'],
+                'publish_at' => ['nullable', 'date'],
+                'unpublish_at' => ['nullable', 'date', 'after:publish_at'],
+                'sort_order' => ['nullable', 'integer'],
+                'meta_title' => ['nullable', 'string', 'max:255'],
+                'meta_description' => ['nullable', 'string'],
+                'og_image_url' => ['nullable', 'url', 'max:255'],
+                'canonical_url' => ['nullable', 'url', 'max:255'],
+                'is_indexable' => ['boolean'],
+                'cta_subtext' => ['nullable', 'string', 'max:255'],
+                'default_join_url' => ['nullable', 'url', 'max:255'],
+                'capture_mode' => ['nullable', 'in:modal,inline'],
+                'body' => ['nullable', 'string'],
+                'experiment_group' => ['nullable', 'string', 'max:255'],
+                'variant' => ['nullable', 'string', 'max:255'],
+                'allocation_weight' => ['nullable', 'integer', 'min:0', 'max:100'],
+                'consent_text' => ['nullable', 'string'],
+                'show_consent' => ['boolean'],
+                'rate_limit_per_ip_per_day' => ['nullable', 'integer', 'min:0'],
+                'require_https_join' => ['boolean'],
+                'allowed_join_domains' => ['nullable', 'array'],
+                'allowed_join_domains.*' => ['string'],
+                'platform_base_url' => ['nullable', 'url', 'max:255'],
+                // Image upload fields
+                'image' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:10240'],
+                'base64_image' => ['nullable', 'string'],
+            ]);
+    
+            $pageData = $validated;
             $imageUrl = null;
-            $page=null;
+    
             // Handle image upload if present
-            if ($request->hasFile('image') || $request->has('base64_image') || 
-                ($request->has('image_url') && str_starts_with($request->image_url, 'data:image/'))) {
+            if (
+                $request->hasFile('image') ||
+                $request->has('base64_image') ||
+                ($request->has('image_url') && str_starts_with($request->image_url, 'data:image/'))
+            ) {
                 $imageUrl = $this->handleImageUpload($request);
                 if ($imageUrl) {
                     $pageData['image_url'] = $imageUrl;
                 }
             }
-            
-             $page = $this->pageService->createPage($pageData);
-
+    
+            $page = $this->pageService->createPage($pageData);
+    
             return response()->json([
+                'success' => true,
                 'message' => 'Page created successfully',
                 'data' => $page
             ], 201);
-
-        } catch (\Exception $e) {
+    
+        } catch (ValidationException $ve) {
+            // Log validation errors with input
+            Log::warning('Page creation validation failed', [
+                'errors' => $ve->errors(),
+                'request_data' => $request->all(),
+            ]);
+    
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create page: ' . $e->getMessage()
+                'message' => 'Validation failed',
+                'errors' => $ve->errors()
+            ], 422);
+    
+        } catch (\Exception $e) {
+            // Log runtime errors
+            Log::error('Page creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all(),
+            ]);
+    
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create page. Please try again later.'
             ], 500);
         }
     }
