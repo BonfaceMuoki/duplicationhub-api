@@ -22,7 +22,7 @@ class UtilityService
     ->select(
         'users.*',
         'guardians.*',
-        DB::raw("CONCAT(users.first_name, ' ', users.middle_name, ' ', users.last_name) AS full_name")
+        DB::raw("CONCAT(users.first_name, ' ', COALESCE(users.middle_name, ''), ' ', users.last_name) AS full_name")
     )
     ->paginate($request->perPage ?? 10);
 
@@ -39,7 +39,7 @@ class UtilityService
         $staff->select(
         'users.*',
         'school_staff.*',
-        DB::raw("CONCAT(users.first_name, ' ', users.middle_name, ' ', users.last_name) AS full_name")
+        DB::raw("CONCAT(users.first_name, ' ', COALESCE(users.middle_name, ''), ' ', users.last_name) AS full_name")
         );
         $staff = $staff ->paginate($request->perPage ?? 10);
         return response()->json([

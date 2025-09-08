@@ -58,7 +58,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getFullNameAttribute(): string
     {
-        $name = $this->first_name;
+        $name = $this->first_name ?? '';
         
         if ($this->middle_name) {
             $name .= ' ' . $this->middle_name;
@@ -68,6 +68,6 @@ class User extends Authenticatable implements JWTSubject
             $name .= ' ' . $this->last_name;
         }
         
-        return $name;
+        return trim($name);
     }
 }

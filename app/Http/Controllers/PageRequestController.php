@@ -14,9 +14,13 @@ class PageRequestController extends Controller
      */
     public function submit(Request $request): JsonResponse
     {
+        // Debug: Log the incoming request data
+        \Log::info('Page Request Data:', $request->all());
+        
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
+            'phone_number' => 'required|string|max:20',
             'message' => 'required|string|max:1000',
         ]);
 
@@ -29,12 +33,21 @@ class PageRequestController extends Controller
         }
 
         try {
-            $pageRequest = PageRequest::create([
+            $data = [
                 'name' => $request->name,
                 'email' => $request->email,
+                'phone_number' => $request->phone_number,
                 'message' => $request->message,
                 'status' => 'pending'
-            ]);
+            ];
+            
+            // Debug: Log the data being saved
+            \Log::info('Page Request Data to Save:', $data);
+            
+            $pageRequest = PageRequest::create($data);
+            
+            // Debug: Log the created record
+            \Log::info('Page Request Created:', $pageRequest->toArray());
 
             return response()->json([
                 'success' => true,

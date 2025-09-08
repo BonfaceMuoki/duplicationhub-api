@@ -108,9 +108,9 @@ class LeadService
             // Get the handle
             $submitterHandle = $userInvite->handle;
             
-            // Send password email to the new user (after invite is created)
+            // Send welcome email to the new user (after invite is created)
             if (isset($plainPassword)) {
-                $this->sendPasswordEmail($user, $page, $plainPassword, $submitterHandle);
+                $this->sendWelcomeEmail($user, $page, $submitterHandle);
             }
 
             // Create the lead
@@ -496,15 +496,14 @@ class LeadService
     }
 
     /**
-     * Send password email to new user
+     * Send welcome email to new user
      */
-    private function sendPasswordEmail(User $user, Page $page, string $plainPassword, string $handle): bool
+    private function sendWelcomeEmail(User $user, Page $page, string $handle): bool
     {
         try {
             $emailData = [
                 'name' => $user->first_name,
                 'email' => $user->email,
-                'password' => $plainPassword,
                 'page_title' => $page->title,
                 'page_headline' => $page->headline,
                 'my_link' => url("/{$page->slug}?ref={$handle}"),
@@ -514,13 +513,13 @@ class LeadService
                 'cta_subtext' => $page->cta_subtext,
             ];
 
-            // Send password email
-            Mail::send('emails.leads.password', $emailData, function ($message) use ($user, $page) {
+            // Send welcome email
+            Mail::send('emails.leads.welcome', $emailData, function ($message) use ($user, $page) {
                 $message->to($user->email, $user->first_name)
-                        ->subject("Your Account Credentials - {$page->title}");
+                        ->subject("Welcome! Thank you for your interest - {$page->title}");
             });
 
-            Log::info('Password email sent successfully', [
+            Log::info('Welcome email sent successfully', [
                 'user_id' => $user->id,
                 'email' => $user->email
             ]);
@@ -528,7 +527,7 @@ class LeadService
             return true;
 
         } catch (\Exception $e) {
-            Log::error('Failed to send password email', [
+            Log::error('Failed to send welcome email', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'error' => $e->getMessage()

@@ -30,9 +30,9 @@ class AuthenticationController extends Controller
     {
         $request->validate([
             'first_name' => 'required|string',
-            'middle_name' => 'required|string',
+            'middle_name' => 'nullable|string',
             'last_name' => 'required|string',
-            'date_of_birth' => 'required|date',
+            'date_of_birth' => 'nullable|date',
             'gender' => 'required|in:Male,Female,Other',
             'phone_number' => 'nullable|string',
             'email' => 'required|email|unique:users',
