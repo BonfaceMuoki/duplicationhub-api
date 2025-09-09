@@ -98,7 +98,7 @@
             <span class="block text-[#000080]">Duplication Hub</span>
         </h1>
         <p class="text-xl md:text-2xl mb-8 max-w-4xl mx-auto text-[#FFFFFF]">
-            <span class="font-semibold text-[#00FF00]">Duplicate and Win.</span>
+            <span class="font-semibold text-green-500">Duplicate and Win.</span>
         </p>
         <p class="text-lg md:text-xl mb-8 max-w-4xl mx-auto text-[#FFFFFF]">
             Are you tired of joining platforms and not knowing what to do next?
@@ -109,10 +109,10 @@
         </p>
         <p class="text-lg md:text-xl mb-8 max-w-4xl mx-auto text-[#FFFFFF]">
             This isn't about hype or hard selling. It's about using a working system to 
-            <span class="font-semibold text-[#00FF00]">Duplicate and Win.</span>
+            <span class="font-semibold text-green-500">Duplicate and Win.</span>
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a onclick="openPageRequestModal()"  class="bg-[#00FF00] text-[#FFFFFF] px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <a onclick="openPageRequestModal()"  class="bg-green-600 text-[#FFFFFF] px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
                 Ask for Pages
             </a>
         </div>
@@ -143,7 +143,7 @@
                     <h3 class="text-xl font-bold text-[#000080] mb-2">Choose a platform</h3>
                 </div>
                 <div class="text-center">
-                    <div class="w-16 h-16 bg-[#00FF00] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <span class="text-[#FFFFFF] font-bold text-xl">2</span>
                     </div>
                     <h3 class="text-xl font-bold text-[#000080] mb-2">Follow the setup guide</h3>
@@ -189,7 +189,7 @@
             </div>
             
             <div class="value-card bg-white p-8 rounded-2xl text-center">
-                <div class="w-16 h-16 bg-[#00FF00] rounded-full flex items-center justify-center mx-auto mb-6">
+                <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                     <svg class="w-8 h-8 text-[#FFFFFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
                     </svg>
@@ -266,7 +266,7 @@
             </div>
             
             <div class="text-center">
-                <div class="w-16 h-16 bg-[#00FF00] rounded-full flex items-center justify-center mx-auto mb-4">
+                <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span class="text-[#FFFFFF] text-2xl">🤝</span>
                 </div>
                 <h3 class="text-xl font-bold text-[#000080] mb-2">Leaders</h3>
@@ -314,7 +314,7 @@
                         <span>Choose the platform you like</span>
                     </li>
                     <li class="flex items-start space-x-3">
-                        <span class="w-8 h-8 bg-[#00FF00] text-[#FFFFFF] rounded-full flex items-center justify-center flex-shrink-0">2</span>
+                        <span class="w-8 h-8 bg-green-600 text-[#FFFFFF] rounded-full flex items-center justify-center flex-shrink-0">2</span>
                         <span>Register and activate your account</span>
                     </li>
                     <li class="flex items-start space-x-3">
@@ -352,7 +352,7 @@
             Don't try to reinvent the wheel. Just follow the steps, share your page, and let the system do the explaining for you.
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="#who-this-is-for" class="bg-[#00FF00] text-[#FFFFFF] px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-all duration-200 transform hover:scale-105 shadow-lg">
+            <a href="#who-this-is-for" class="bg-green-600 text-[#FFFFFF] px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg">
                 Get Started Now
             </a>
         </div>
@@ -401,7 +401,7 @@
                     <label for="message" class="block text-sm font-medium text-gray-700 mb-2">Message</label>
                     <textarea id="message" name="message" rows="4" required 
                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
-                              placeholder="Tell us about your business and what kind of duplication page you need..."></textarea>
+                              placeholder="You can leave us any message oor areas you want clarified..."></textarea>
                 </div>
                 
                 <!-- Submit Button -->

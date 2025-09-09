@@ -138,43 +138,30 @@
                             <!-- Video Section -->
                             <div class="mb-4">
                                 <a href="{{ $page->video_url }}" target="_blank" rel="noopener noreferrer" class="block">
-                                    <div class="relative h-32 rounded-lg shadow-md overflow-hidden group cursor-pointer bg-gradient-to-br from-gray-900 to-gray-800">
-                                        @if(filter_var($page->video_url, FILTER_VALIDATE_URL) && (str_contains($page->video_url, 'youtube.com') || str_contains($page->video_url, 'youtu.be')))
-                                            <!-- YouTube Video Embed -->
-                                            <iframe 
-                                                src="{{ str_replace('watch?v=', 'embed/', str_replace('youtu.be/', 'youtube.com/embed/', $page->video_url)) }}?rel=0&modestbranding=1" 
-                                                title="{{ $page->title }} Video"
-                                                class="w-full h-full"
-                                                frameborder="0" 
-                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                                allowfullscreen>
-                                            </iframe>
-                                        @else
-                                            <!-- Generic Video Display -->
-                                            <div class="absolute inset-0 flex items-center justify-center">
-                                                <div class="text-center text-white">
-                                                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-3 mx-auto group-hover:bg-opacity-30 transition-all duration-300">
-                                                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                                            <path d="M8 5v14l11-7z"/>
-                                                        </svg>
-                                                    </div>
-                                                    <p class="text-sm font-medium">Watch Video</p>
-                                                    <p class="text-xs text-gray-300 mt-1">Click to open</p>
-                                                </div>
-                                            </div>
-                                        @endif
-                                        
-                                        <!-- Universal Overlay for all videos -->
-                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-                                            <div class="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center">
-                                                <div class="w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center mb-2 mx-auto">
-                                                    <svg class="w-6 h-6 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
+                                    <div class="relative h-48 rounded-lg shadow-lg overflow-hidden group cursor-pointer bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 transition-all duration-300">
+                                        <!-- YouTube Video Thumbnail/Preview -->
+                                        <div class="absolute inset-0 flex items-center justify-center">
+                                            <div class="text-center text-white">
+                                                <!-- YouTube Play Button -->
+                                                <div class="w-20 h-20 bg-white bg-opacity-90 rounded-full flex items-center justify-center mb-4 mx-auto group-hover:bg-opacity-100 group-hover:scale-110 transition-all duration-300 shadow-2xl">
+                                                    <svg class="w-10 h-10 text-red-600 ml-1" fill="currentColor" viewBox="0 0 24 24">
                                                         <path d="M8 5v14l11-7z"/>
                                                     </svg>
                                                 </div>
-                                                <p class="text-xs font-medium">Click to watch</p>
+                                                <p class="text-lg font-bold mb-2">Watch Video</p>
+                                                <p class="text-sm text-red-100">Click to open on YouTube</p>
                                             </div>
                                         </div>
+                                        
+                                        <!-- YouTube Logo -->
+                                        <div class="absolute top-4 right-4">
+                                            <div class="bg-white bg-opacity-90 rounded px-2 py-1">
+                                                <span class="text-red-600 font-bold text-sm">YouTube</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Hover Overlay -->
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
                                     </div>
                                 </a>
                                 <p class="text-xs text-gray-500 mt-2 text-center">Click to watch in new tab</p>
